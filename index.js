@@ -5,9 +5,9 @@ const { google } = require('googleapis');
 const authorize = require('./lib/auth');
 const { append } = require('./lib/sheets');
 
-async function appendValues(sheets, ...values) {
+async function appendValues(sheets, range, ...values) {
   const unixTimestamp = Math.floor(Date.now() / 1000);
-  const response = await append(sheets, unixTimestamp, ...values);
+  const response = await append(sheets, range, unixTimestamp, ...values);
   console.log(`${response.data.updates.updatedCells} cells updated.`);
 }
 
@@ -17,7 +17,7 @@ async function main() {
     const sheets = google.sheets({ version: 'v4', auth });
     let counters = [5000, 5000];
     const interval = setInterval(async () => {
-      await appendValues(sheets, ...counters);
+      await appendValues(sheets, 'Bench', ...counters);
       counters = counters.map((value, index) => {
         return index % 2 === 0 ? value - 200 : value - 10;
       });
