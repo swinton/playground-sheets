@@ -4,6 +4,7 @@ const { google } = require('googleapis');
 
 const authorize = require('./lib/auth');
 const { append } = require('./lib/sheets');
+const { gitHubRateLimitRemainingProducer } = require('./lib/producers');
 
 async function appendValues(sheets, range, ...values) {
   const unixTimestamp = Math.floor(Date.now() / 1000);
@@ -11,20 +12,23 @@ async function appendValues(sheets, range, ...values) {
   console.log(`${response.data.updates.updatedCells} cells updated.`);
 }
 
-async function main() {
+async function main(...args) {
+  console.log(`Starting with ${args.join(', ')}.`)
   try {
     const auth = await authorize();
     const sheets = google.sheets({ version: 'v4', auth });
-    let counters = [5000, 5000];
+    const producers = args.map(envVar => {
+      return gitHubRateLimitRemainingProducer(process.env[envVar]);
+    });
     const interval = setInterval(async () => {
-      await appendValues(sheets, 'Bench', ...counters);
-      counters = counters.map((value, index) => {
-        return index % 2 === 0 ? value - 200 : value - 10;
-      });
+      let counters = await Promise.all((producers.map((producer) => {
+        return producer();
+      })));
+      return appendValues(sheets, 'Bench', ...counters);
     }, 2000);
   } catch (error) {
     console.error(`Error: ${error.message}`);
   }
 }
 
-main();
+main(...process.argv.slice(2));
